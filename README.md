@@ -15,15 +15,27 @@
 
 **Search and play**: search YouTube Music or Spotify from the widget and play a song directly.
 
-<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid1.mp4" width="800" controls></video>
+
+
+https://github.com/user-attachments/assets/faf50530-13bc-4692-bbcb-5fe21c2a55e9
+
+
 
 **Synced lyrics in your panel**: the current line updates as the song plays.
 
-<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid2.mp4" width="800" controls></video>
+
+
+https://github.com/user-attachments/assets/e3b32a9c-cc4a-4757-b992-5d050d43fa32
+
+
 
 **Customisable**: colors, font and size are configurable, and it works in any language.
 
-<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid3.mp4" width="800" controls></video>
+
+
+https://github.com/user-attachments/assets/aff481a7-01e9-43f6-9053-7931b17a784e
+
+
 
 **The popup**: album cover, song info, curren lyric, and controls for the song.
 
