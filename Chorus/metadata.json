@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "BugReportUrl": "https://github.com/Netherizzium/chorus/issues",
+        "Authors": [
+            {
+                "Name": "Netherizzium",
+                "Website": "https://netherizzium.net"
+            }
+        ],
+        "Category": "Multimedia",
+        "Description": "Music bar with synced lyrics, built-in YouTube Music and Spotify search, and media controls.",
+        "Icon": "/icon.png",
+        "Id": "net.netherizzium.chorus",
+        "License": "GPL3",
+        "Name": "Chorus",
+        "Version": "2.10.0",
+        "Website": "https://github.com/Netherizzium/chorus"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.multimediacontrols"
+    ]
+}

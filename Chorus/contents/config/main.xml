@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="fontScale" type="Double">
+      <default>1.0</default>
+    </entry>
+    <entry name="playerMatch" type="String">
+      <default></default>
+    </entry>
+    <entry name="appMode" type="String">
+      <default>universal</default>
+    </entry>
+    <entry name="searchMode" type="String">
+      <default></default>
+    </entry>
+    <entry name="spotifyClientId" type="String">
+      <default></default>
+    </entry>
+    <entry name="spotifyClientSecret" type="String">
+      <default></default>
+    </entry>
+    <entry name="spotifyLaunchCmd" type="String">
+      <default>gtk-launch spotify || gtk-launch com.spotify.Client || spotify</default>
+    </entry>
+    <entry name="spotifyCloseCmd" type="String">
+      <default>pkill -x spotify</default>
+    </entry>
+    <entry name="pearHideAppButton" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="spotifyHideAppButton" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="preferSongs" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showVolumeBar" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="useCustomFont" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="fontPath" type="String">
+      <default></default>
+    </entry>
+    <entry name="hideWhenIdle" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="managePanel" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="launchCmd" type="String">
+      <default>gtk-launch com.github.th_ch.youtube_music || youtube-music</default>
+    </entry>
+    <entry name="closeCmd" type="String">
+      <default>pkill -9 -f youtube-music</default>
+    </entry>
+    <entry name="idleMode" type="String">
+      <default>autohide</default>
+    </entry>
+    <entry name="activeMode" type="String">
+      <default>dodgewindows</default>
+    </entry>
+    <entry name="maxFrac" type="Double">
+      <default>0.5</default>
+    </entry>
+    <entry name="minFrac" type="Double">
+      <default>0.35</default>
+    </entry>
+    <entry name="extraQueue" type="Int">
+      <default>5</default>
+    </entry>
+    <entry name="lyricsOffsetMs" type="Int">
+      <default>0</default>
+    </entry>
+    <entry name="marquee" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="activeColor" type="String">
+      <default>#FFFFFF</default>
+    </entry>
+    <entry name="showCover" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="apiUrl" type="String">
+      <default>http://127.0.0.1:26538</default>
+    </entry>
+  </group>
+</kcfg>
