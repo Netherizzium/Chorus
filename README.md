@@ -56,7 +56,7 @@ https://github.com/user-attachments/assets/aff481a7-01e9-43f6-9053-7931b17a784e
 
 ## Manual Install
 
-Download from the [KDE Store](https://store.kde.org/p/XXXXXXX) or [GitHub releases](https://github.com/Netherizzium/chorus/releases).
+Download from the [KDE Store](https://store.kde.org/p/2370699) or [GitHub releases](https://github.com/Netherizzium/chorus/releases).
 
 To install:
 
