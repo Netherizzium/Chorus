@@ -9,21 +9,21 @@
 </div>
 
 > [!IMPORTANT]  
-> This widget does require some setup for music search. See the [setup guide](SETUP.md).
+> This widget does require some setup for music search. See [SETUP.md](SETUP.md).
 
 ## Showcase
 
 **Search and play**: search YouTube Music or Spotify from the widget and play a song directly.
 
-<video src="media/readme/vid1.mp4" width="800" controls></video>
+<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid1.mp4" width="800" controls></video>
 
 **Synced lyrics in your panel**: the current line updates as the song plays.
 
-<video src="media/readme/vid2.mp4" width="800" controls></video>
+<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid2.mp4" width="800" controls></video>
 
 **Customisable**: colors, font and size are configurable, and it works in any language.
 
-<video src="media/readme/vid3.mp4" width="800" controls></video>
+<video src="https://github.com/Netherizzium/Chorus/blob/master/media/readme/vid3.mp4" width="800" controls></video>
 
 **The popup**: album cover, song info, curren lyric, and controls for the song.
 
@@ -67,6 +67,25 @@ Lyrics come from [LRCLIB](https://lrclib.net), a free and open-source lyrics lib
 
 > [!NOTE]  
 > If lines feel early or late (e.g. Bluetooth or other latency), adjust **Lyrics timing offset** at the bottom of `Look & Feel`. Positive values show lines earlier; +500 works great for me. Sync quality can also vary from song to song; the timings are community-made, so an occasional desynced song is due to the source data, not your setup. Some songs simply have no synced lyrics on LRCLIB; the widget falls back to title/artist.
+
+## Donations
+
+For now, while I set up GitHub Sponsors, I only accept crypto donations:
+
+Bitcoin
+```
+bc1qyv8d8mghjf9sl34we42u670fp9wska009fa5gj
+```
+
+EVM (Ethereum, BNB Smart Chain, etc)
+```
+0xe6E486b5d5DE64C439d868Cd16492b379bF0FAcb
+```
+
+Solana 
+```
+AFSiUhxK2RLBek6c6tppxHKC9qbsWLtYyW878wHGEGZP
+```
 
 ## Privacy
 
