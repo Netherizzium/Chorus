@@ -643,14 +643,14 @@ PlasmoidItem {
                     src: root.dispArt
                     px: 128
                     radius: Math.max(3, bar.coverSize * 0.14)
-                    visible: root.dispArt != ""
+                    visible: root.dispArt != "" && !coverImg.failed
                 }
                 Kirigami.Icon {
                     anchors.fill: parent
                     anchors.margins: 3
                     source: "media-album-cover"
                     color: root.cActive
-                    visible: root.dispArt == ""
+                    visible: root.dispArt == "" || coverImg.failed
                     opacity: 0.6
                 }
             }
@@ -867,13 +867,13 @@ PlasmoidItem {
                     src: root.dispArt
                     px: 512
                     radius: 12
-                    visible: root.dispArt != ""
+                    visible: root.dispArt != "" && !bigCover.failed
                 }
                 Kirigami.Icon {
                     anchors.fill: parent
                     source: "media-album-cover"
                     color: root.cActive
-                    visible: root.dispArt == ""
+                    visible: root.dispArt == "" || bigCover.failed
                     opacity: 0.5
                 }
                 MouseArea {

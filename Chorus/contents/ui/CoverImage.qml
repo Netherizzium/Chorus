@@ -8,6 +8,9 @@ Item {
     property int px: 128
     property real radius: 0
     property Image front: imgA
+    readonly property bool failed: _failedSrc != "" && _failedSrc == src
+    property url _failedSrc: ""
+    property url _retriedSrc: ""
 
     onSrcChanged: {
         if (src == "") return;
@@ -21,6 +24,24 @@ Item {
         back.source = src;
     }
 
+    function settle(img) {
+        if (img.source != src) return;
+        if (img.status === Image.Ready) {
+            _failedSrc = "";
+            if (front !== img) front = img;
+        } else if (img.status === Image.Error) {
+            if (_retriedSrc != src) {
+                _retriedSrc = src;
+                var s = img.source;
+                img.source = "";
+                img.source = s;
+            } else {
+                _failedSrc = src;
+                console.log("[chorus] cover art failed to load: " + src);
+            }
+        }
+    }
+
     Image {
         id: imgA
         anchors.fill: parent
@@ -30,7 +51,7 @@ Item {
         sourceSize.width: cover.px
         sourceSize.height: cover.px
         visible: false
-        onStatusChanged: if (status === Image.Ready && cover.front !== imgA && source == cover.src) cover.front = imgA
+        onStatusChanged: cover.settle(imgA)
     }
     Image {
         id: imgB
@@ -41,7 +62,7 @@ Item {
         sourceSize.width: cover.px
         sourceSize.height: cover.px
         visible: false
-        onStatusChanged: if (status === Image.Ready && cover.front !== imgB && source == cover.src) cover.front = imgB
+        onStatusChanged: cover.settle(imgB)
     }
 
     MultiEffect {
