@@ -35,7 +35,7 @@ Item {
     function apiRequest(method, path, body, cb, retried) {
         var xhr = new XMLHttpRequest();
         var done = false;
-        xhr.timeout = 10000;
+        xhr.timeout = 5000;
         xhr.ontimeout = function () {
             if (done) return;
             done = true;
@@ -70,7 +70,7 @@ Item {
         }
         var xhr = new XMLHttpRequest();
         var done = false;
-        xhr.timeout = 15000;
+        xhr.timeout = 10000;
         xhr.ontimeout = function () {
             if (done) return;
             done = true;
@@ -106,12 +106,14 @@ Item {
 
     Timer {
         id: searchWatchdog
-        interval: 120000
+        interval: 30000
         repeat: false
         onTriggered: {
             if (!pearApi.searching) return;
             pearApi.searching = false;
-            pearApi.searchError = i18n("Search timed out");
+            pearApi.searchError = pearApi.searchAutoLaunched
+                ? i18n("YouTube Music started but isn't responding. It may be unavailable in your region, or the \"API Server\" plugin is disabled")
+                : i18n("Search timed out");
             appWait.stop();
             searchRetry.stop();
         }
@@ -129,13 +131,28 @@ Item {
             }
             if (root.searchAppRunning) {
                 stop();
-                pearApi.searchDeadline = Date.now() + 60000;
+                pearApi.searchDeadline = Date.now() + 20000;
+                searchWatchdog.restart();
                 searchRetry.interval = 3000;
                 searchRetry.restart();
             } else if (++ticks > 50) {
                 stop();
                 pearApi.searching = false;
-                pearApi.searchError = i18n("YouTube Music didn't start");
+                pearApi.searchError = i18n("YouTube Music didn't start. Check the Start command in the widget settings");
+            }
+        }
+    }
+    Timer {
+        id: launchWatch
+        property int ticks: 0
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            if (root.searchAppRunning) { stop(); return; }
+            if (++ticks >= 25) {
+                stop();
+                if (pearApi.searchError === "" && !pearApi.searching)
+                    pearApi.searchError = i18n("YouTube Music didn't start. Check the Start command in the widget settings");
             }
         }
     }
@@ -171,13 +188,17 @@ Item {
                 }
                 pearApi.searching = false;
                 pearApi.searchResults = [];
-                pearApi.searchError = status === 0
-                    ? i18n("Can't reach the API server. Enable the \"API Server\" plugin in YouTube Music")
-                    : i18n("Search failed (HTTP %1)", status);
+                if ((status === 0 || status === 503) && pearApi.searchAutoLaunched)
+                    pearApi.searchError = i18n("YouTube Music started but isn't responding. It may be unavailable in your region, or the \"API Server\" plugin is disabled");
+                else if (status === 0)
+                    pearApi.searchError = i18n("Can't reach the API server. Enable the \"API Server\" plugin in YouTube Music");
+                else
+                    pearApi.searchError = i18n("Search failed (HTTP %1)", status);
                 return;
             }
             var songs = Ytm.parseSearch(resp);
-            if (songs.length === 0 && pearApi.searchAutoLaunched && pearApi.searchTries < 6) {
+            if (songs.length === 0 && pearApi.searchAutoLaunched && pearApi.searchTries < 6
+                    && Date.now() < pearApi.searchDeadline) {
                 pearApi.searchTries++;
                 searchRetry.interval = 1500;
                 searchRetry.restart();
@@ -189,7 +210,9 @@ Item {
                 songs = pearApi.songsFirst(songs);
             pearApi.searchResults = songs;
             if (songs.length === 0)
-                pearApi.searchError = i18n("No results");
+                pearApi.searchError = pearApi.searchAutoLaunched
+                    ? i18n("No results. If this keeps happening, YouTube Music may not be available in your region")
+                    : i18n("No results");
         });
     }
 
@@ -365,9 +388,18 @@ Item {
     }
 
     function launchApp() {
-        var cmd = (Plasmoid.configuration.launchCmd || "gtk-launch com.github.th_ch.youtube_music || youtube-music").trim();
+        var cmd = (Plasmoid.configuration.launchCmd || "youtube-music").trim();
         if (cmd === "") return;
-        root.runCmd("sh -c '( " + cmd.split("'").join("") + " ) >/dev/null 2>&1 &'");
+        root.runCmdWatch("sh -c '( " + cmd.split("'").join("") + " ) >/dev/null 2>&1 & p=$!; sleep 2; st=$(ps -o state= -p $p 2>/dev/null); if [ -n \"$st\" ] && [ \"$st\" != \"Z\" ]; then echo chorus-ok; elif wait $p; then echo chorus-ok; else echo chorus-fail; fi'",
+            function (out) {
+                if (out.indexOf("chorus-fail") === -1 || root.searchAppRunning) return;
+                launchWatch.stop();
+                appWait.stop();
+                searchRetry.stop();
+                pearApi.searching = false;
+                pearApi.searchError = i18n("YouTube Music couldn't start. Check the Start command in the widget settings");
+            });
+        if (!root.searchAppRunning) { launchWatch.ticks = 0; launchWatch.restart(); }
     }
 
     function closeApp() {

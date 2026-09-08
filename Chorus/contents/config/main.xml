@@ -24,16 +24,16 @@
       <default></default>
     </entry>
     <entry name="spotifyLaunchCmd" type="String">
-      <default>gtk-launch spotify || gtk-launch com.spotify.Client || spotify</default>
+      <default>gtk-launch com.spotify.Client</default>
     </entry>
     <entry name="spotifyCloseCmd" type="String">
-      <default>pkill -x spotify</default>
+      <default>pkill -9 -f spotify</default>
     </entry>
     <entry name="pearHideAppButton" type="Bool">
-      <default>false</default>
+      <default>true</default>
     </entry>
     <entry name="spotifyHideAppButton" type="Bool">
-      <default>false</default>
+      <default>true</default>
     </entry>
     <entry name="preferSongs" type="Bool">
       <default>true</default>
@@ -54,7 +54,7 @@
       <default>false</default>
     </entry>
     <entry name="launchCmd" type="String">
-      <default>gtk-launch com.github.th_ch.youtube_music || youtube-music</default>
+      <default>youtube-music</default>
     </entry>
     <entry name="closeCmd" type="String">
       <default>pkill -9 -f youtube-music</default>

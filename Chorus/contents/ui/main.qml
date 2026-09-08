@@ -434,6 +434,8 @@ PlasmoidItem {
     function showOptimistic(o) { optimistic = o; optimisticTimeout.restart(); }
     function settleOptimistic() { optSettle.restart(); }
     function runCmd(sh) { exec.connectSource(sh); }
+    property var cmdCallbacks: ({})
+    function runCmdWatch(sh, cb) { cmdCallbacks[sh] = cb; exec.connectSource(sh); }
 
     readonly property bool shuffleOn: pearIsCurrent ? pear.shuffleOn : false
     readonly property string repeatMode: pearIsCurrent ? pear.repeatMode : "NONE"
@@ -472,7 +474,14 @@ PlasmoidItem {
         id: exec
         engine: "executable"
         connectedSources: []
-        onNewData: function (sourceName) { disconnectSource(sourceName); }
+        onNewData: function (sourceName, data) {
+            disconnectSource(sourceName);
+            var cb = root.cmdCallbacks[sourceName];
+            if (cb) {
+                delete root.cmdCallbacks[sourceName];
+                cb(data["stdout"] || "");
+            }
+        }
     }
 
     property string lastAppliedMode: ""
@@ -581,7 +590,7 @@ PlasmoidItem {
             }
         }
 
-        readonly property bool titleMode: root.optimistic !== null || root.isPaused || !root.haveSynced
+        readonly property bool titleMode: root.optimistic !== null || !root.isPlaying || !root.haveSynced
                                           || root.lineIdx < 0 || root.lineIdx >= root.lines.length
         readonly property string displayText: {
             if (root.dispTitle === "") return i18n("Nothing playing");
@@ -667,7 +676,7 @@ PlasmoidItem {
 
             Item {
                 id: viewport
-                opacity: root.isActive ? 1.0 : 0.65
+                opacity: root.isActive || root.hasTrack ? 1.0 : 0.65
                 Layout.alignment: Qt.AlignVCenter
                 Layout.preferredHeight: bar.thick
                 Layout.preferredWidth: Math.min(curText.implicitWidth + 2, bar.lyricsMaxW, bar.frozenViewportW)
@@ -938,7 +947,7 @@ PlasmoidItem {
                 visible: root.isActive
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 1.4
                 readonly property bool showLyric: root.haveSynced && root.lineIdx >= 0
-                                                  && root.lineIdx < root.lines.length && !root.isPaused
+                                                  && root.lineIdx < root.lines.length && root.isPlaying
                 text: showLyric ? (root.lines[root.lineIdx].text || "♪")
                     : (root.isActive && !root.haveSynced && !root.fetching ? i18n("No synced lyrics found") : " ")
                 font.family: root.cfgFont

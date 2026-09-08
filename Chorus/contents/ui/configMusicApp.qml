@@ -30,10 +30,6 @@ KCM.SimpleKCM {
     readonly property bool spotifySearch: searchCombo.currentIndex === 3
     readonly property bool showPear: pearSearch || autoSearch
     readonly property bool showSpotify: spotifySearch || autoSearch
-    readonly property bool hideCommands: autoSearch
-        ? cfg_pearHideAppButton && cfg_spotifyHideAppButton
-        : (pearSearch ? cfg_pearHideAppButton
-                      : spotifySearch && cfg_spotifyHideAppButton)
     readonly property int fieldWidth: Kirigami.Units.gridUnit * 22
 
     Kirigami.FormLayout {
@@ -130,16 +126,16 @@ KCM.SimpleKCM {
         }
         QQC2.TextField {
             id: spotifyLaunchField
-            visible: page.showSpotify && !page.hideCommands
+            visible: page.showSpotify
             Kirigami.FormData.label: i18n("Start command:")
-            placeholderText: "gtk-launch spotify || gtk-launch com.spotify.Client || spotify"
+            placeholderText: "gtk-launch com.spotify.Client"
             Layout.maximumWidth: page.fieldWidth
         }
         QQC2.TextField {
             id: spotifyCloseField
-            visible: page.showSpotify && !page.hideCommands
+            visible: page.showSpotify
             Kirigami.FormData.label: i18n("Close command:")
-            placeholderText: "pkill -x spotify"
+            placeholderText: "pkill -9 -f spotify"
             Layout.maximumWidth: page.fieldWidth
         }
 
@@ -186,14 +182,14 @@ KCM.SimpleKCM {
         }
         QQC2.TextField {
             id: launchField
-            visible: page.showPear && !page.hideCommands
+            visible: page.showPear
             Kirigami.FormData.label: i18n("Start command:")
-            placeholderText: "gtk-launch com.github.th_ch.youtube_music || youtube-music"
+            placeholderText: "youtube-music"
             Layout.maximumWidth: page.fieldWidth
         }
         QQC2.TextField {
             id: closeField
-            visible: page.showPear && !page.hideCommands
+            visible: page.showPear
             Kirigami.FormData.label: i18n("Force-close command:")
             placeholderText: "pkill -9 -f youtube-music"
             Layout.maximumWidth: page.fieldWidth
