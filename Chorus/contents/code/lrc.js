@@ -44,3 +44,18 @@ function indexFor(lines, ms) {
     }
     return ans;
 }
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function fontSpan(s, css) {
+    if (!css || css === "") return s;
+    return '<span style="font-family: ' + css + '; white-space: pre">'
+           + escapeHtml(s) + '</span>';
+}

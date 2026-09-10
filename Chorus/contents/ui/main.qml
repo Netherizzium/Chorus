@@ -521,19 +521,53 @@ PlasmoidItem {
     toolTipTextFormat: Text.PlainText
     hideOnWindowDeactivate: true
 
-    FontLoader {
-        id: customFontLoader
-        source: {
-            if (!Plasmoid.configuration.useCustomFont) return "";
-            var p = Plasmoid.configuration.fontPath || "";
-            if (p === "") return "";
-            return p.indexOf("file:") === 0 ? p : "file://" + p;
+    readonly property var fontSources: {
+        if (!Plasmoid.configuration.useCustomFont) return [];
+        var out = [];
+        var all = [String(Plasmoid.configuration.fontPath || "")]
+            .concat(Plasmoid.configuration.fontFallbacks || []);
+        for (var i = 0; i < all.length; i++) {
+            var p = String(all[i] || "").trim();
+            if (p !== "" && out.indexOf(p) < 0) out.push(p);
         }
+        return out;
     }
-    readonly property string cfgFont: (Plasmoid.configuration.useCustomFont
-        && customFontLoader.status === FontLoader.Ready)
-        ? customFontLoader.name
+
+    Instantiator {
+        id: fontLoaders
+        model: root.fontSources
+        delegate: FontLoader {
+            source: modelData.indexOf("file:") === 0 ? modelData : "file://" + modelData
+            onStatusChanged: root.syncFontFamilies()
+        }
+        onObjectAdded: root.syncFontFamilies()
+        onObjectRemoved: root.syncFontFamilies()
+    }
+
+    property var loadedFamilies: []
+    function syncFontFamilies() {
+        var out = [];
+        for (var i = 0; i < fontLoaders.count; i++) {
+            var l = fontLoaders.objectAt(i);
+            if (l && l.status === FontLoader.Ready && l.name !== "" && out.indexOf(l.name) < 0)
+                out.push(l.name);
+        }
+        loadedFamilies = out;
+    }
+
+    readonly property string cfgFont: loadedFamilies.length > 0
+        ? loadedFamilies[0]
         : Kirigami.Theme.defaultFont.family
+    readonly property string cfgFontCss: {
+        if (loadedFamilies.length < 2) return "";
+        var out = [];
+        var all = loadedFamilies.concat([Kirigami.Theme.defaultFont.family]);
+        for (var i = 0; i < all.length; i++) {
+            var f = String(all[i]).replace(/["'\\<>;{}]/g, "").trim();
+            if (f !== "") out.push("'" + f + "'");
+        }
+        return out.join(", ");
+    }
     readonly property color cActive: Plasmoid.configuration.activeColor
     readonly property color cInactive: Qt.alpha(cActive, 0.55)
 
@@ -609,7 +643,7 @@ PlasmoidItem {
             var animate = shownOnce && newText !== "" && bar.shown && root.winVisible
                           && !titleMode && root.isPlaying;
             prevText.text = curText.text;
-            curText.text = newText;
+            curText.text = Lrc.fontSpan(newText, root.cfgFontCss);
             shownOnce = true;
             if (animate && prevText.text !== "") {
                 prevText.opacity = 1;
@@ -626,6 +660,16 @@ PlasmoidItem {
             }
         }
         property bool shownOnce: false
+        Connections {
+            target: root
+            function onCfgFontCssChanged() {
+                slideAnim.stop();
+                prevText.text = "";
+                prevText.opacity = 0;
+                curText.opacity = 1;
+                curText.text = Lrc.fontSpan(bar.displayText, root.cfgFontCss);
+            }
+        }
         onTitleModeChanged: if (titleMode) { slideAnim.stop(); curText.opacity = 1; curText.color = Qt.binding(function () { return root.cActive; }); curText.y = Qt.binding(function () { return curText.yBase; }); prevText.opacity = 0; }
 
         RowLayout {
@@ -688,7 +732,7 @@ PlasmoidItem {
                     width: curText.implicitWidth
 
                     Text {
-                        textFormat: Text.PlainText
+                        textFormat: root.cfgFontCss !== "" ? Text.RichText : Text.PlainText
                         id: prevText
                         readonly property real yBase: (content.height - height) / 2
                         y: yBase
@@ -700,11 +744,11 @@ PlasmoidItem {
                     }
 
                     Text {
-                        textFormat: Text.PlainText
+                        textFormat: root.cfgFontCss !== "" ? Text.RichText : Text.PlainText
                         id: curText
                         readonly property real yBase: (content.height - height) / 2
                         y: yBase
-                        text: bar.displayText
+                        text: Lrc.fontSpan(bar.displayText, root.cfgFontCss)
                         color: root.cActive
                         font.family: root.cfgFont
                         font.pixelSize: bar.lyricPx
@@ -927,6 +971,7 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 text: root.dispTitle !== "" ? Lrc.normalize(root.dispTitle) : i18n("Nothing playing")
                 font.family: root.cfgFont
+                fontCss: root.cfgFontCss
                 font.pixelSize: Kirigami.Theme.defaultFont.pixelSize * 1.3
                 font.bold: true
                 color: root.cActive
@@ -939,6 +984,7 @@ PlasmoidItem {
                 color: root.cActive
                 textOpacity: 0.7
                 font.family: root.cfgFont
+                fontCss: root.cfgFontCss
                 scrolling: Plasmoid.configuration.marquee && root.expanded && root.winVisible
             }
 
@@ -951,6 +997,7 @@ PlasmoidItem {
                 text: showLyric ? (root.lines[root.lineIdx].text || "♪")
                     : (root.isActive && !root.haveSynced && !root.fetching ? i18n("No synced lyrics found") : " ")
                 font.family: root.cfgFont
+                fontCss: root.cfgFontCss
                 font.italic: showLyric
                 font.pixelSize: showLyric ? Kirigami.Theme.defaultFont.pixelSize : Kirigami.Theme.smallFont.pixelSize
                 color: root.cActive

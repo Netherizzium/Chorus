@@ -50,7 +50,7 @@ https://github.com/user-attachments/assets/aff481a7-01e9-43f6-9053-7931b17a784e
 - **Synced lyrics** from [LRCLIB](https://lrclib.net), a free and open-source lyrics library.
 - Works with **any media player**: Spotify, YouTube Music, VLC, etc.
 - Album cover, current lyric, playback controls, seek bar, shuffle/repeat, volume slider.
-- Custom font, colors, width, font scale and other **customisation** features.
+- Custom font with **multiple font** support, colors, width, font scale and other **customisation** features.
 - **In-widget music search** via YouTube Music or Spotify. See [SETUP.md](SETUP.md).
 - Horizontal **and** vertical panels; content rotates to read along the panel.
 

@@ -10,6 +10,7 @@ KCM.SimpleKCM {
 
     property alias cfg_useCustomFont: customFontCheck.checked
     property alias cfg_fontPath: fontPathField.text
+    property var cfg_fontFallbacks: []
     property double cfg_fontScale
     property double cfg_minFrac
     property double cfg_maxFrac
@@ -21,7 +22,56 @@ KCM.SimpleKCM {
     property var fontDialog: null
     property var colorButton: null
 
+    readonly property int maxFallbacks: 5
+    property var fontDialogField: null
+    property int nextUid: 1
+
+    ListModel { id: fallbackModel }
+
+    function loadFallbacks() {
+        fallbackModel.clear();
+        var stored = page.cfg_fontFallbacks || [];
+        for (var i = 0; i < stored.length && i < page.maxFallbacks; i++) {
+            var p = String(stored[i] || "").trim();
+            if (p !== "") fallbackModel.append({ path: p, uid: page.nextUid++ });
+        }
+    }
+    onCfg_fontFallbacksChanged: if (!page.ready) page.loadFallbacks()
+
+    function rowForUid(uid) {
+        for (var i = 0; i < fallbackModel.count; i++)
+            if (fallbackModel.get(i).uid === uid) return i;
+        return -1;
+    }
+    function addFallback() {
+        if (fallbackModel.count >= page.maxFallbacks) return;
+        fallbackModel.append({ path: "", uid: page.nextUid++ });
+    }
+    function setFallbackPath(uid, path) {
+        var i = page.rowForUid(uid);
+        if (i < 0) return;
+        fallbackModel.setProperty(i, "path", String(path));
+        page.syncFallbacks();
+    }
+    function removeFallback(uid) {
+        var i = page.rowForUid(uid);
+        if (i < 0) return;
+        fallbackModel.remove(i);
+        page.syncFallbacks();
+    }
+
+    function syncFallbacks() {
+        var out = [];
+        for (var i = 0; i < fallbackModel.count; i++) {
+            var p = String(fallbackModel.get(i).path || "").trim();
+            if (p !== "") out.push(p);
+        }
+        page.cfg_fontFallbacks = out;
+    }
+
     Component.onCompleted: {
+        page.loadFallbacks();
+
         try {
             fontDialog = Qt.createQmlObject(
                 'import QtQuick.Dialogs; FileDialog { }', page, "fontDialog");
@@ -29,7 +79,13 @@ KCM.SimpleKCM {
             fontDialog.nameFilters = [i18n("Font files (*.ttf *.otf *.ttc)"),
                                       i18n("All files (*)")];
             fontDialog.accepted.connect(function () {
-                fontPathField.text = fontDialog.selectedFile.toString();
+                var f = fontDialog.selectedFile.toString();
+                if (page.fontDialogField === null) {
+                    fontPathField.text = f;
+                } else {
+                    page.fontDialogField.text = f;
+                    page.setFallbackPath(page.fontDialogField.uid, f);
+                }
             });
         } catch (e) { fontDialog = null; }
 
@@ -68,7 +124,56 @@ KCM.SimpleKCM {
             QQC2.Button {
                 visible: page.fontDialog !== null
                 icon.name: "document-open"
-                onClicked: page.fontDialog.open()
+                QQC2.ToolTip.text: i18n("Browse for a font file")
+                QQC2.ToolTip.visible: hovered
+                onClicked: { page.fontDialogField = null; page.fontDialog.open(); }
+            }
+            QQC2.Button {
+                icon.name: "list-add"
+                enabled: fallbackModel.count < page.maxFallbacks
+                QQC2.ToolTip.text: i18n("Add a fallback font")
+                QQC2.ToolTip.visible: hovered
+                onClicked: page.addFallback()
+            }
+        }
+
+        ColumnLayout {
+            Kirigami.FormData.label: i18n("Fallback fonts:")
+            visible: customFontCheck.checked && fallbackModel.count > 0
+            spacing: Kirigami.Units.smallSpacing
+            Repeater {
+                model: fallbackModel
+                delegate: RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    QQC2.Label {
+                        text: i18n("%1.", index + 2)
+                        opacity: 0.7
+                    }
+                    QQC2.TextField {
+                        id: fallbackField
+                        readonly property int uid: model.uid
+                        Layout.fillWidth: true
+                        Component.onCompleted: text = model.path
+                        onTextEdited: page.setFallbackPath(fallbackField.uid, text)
+                    }
+                    QQC2.Button {
+                        visible: page.fontDialog !== null
+                        icon.name: "document-open"
+                        QQC2.ToolTip.text: i18n("Browse for a font file")
+                        QQC2.ToolTip.visible: hovered
+                        onClicked: { page.fontDialogField = fallbackField; page.fontDialog.open(); }
+                    }
+                    QQC2.Button {
+                        icon.name: "list-remove"
+                        QQC2.ToolTip.text: i18n("Remove this fallback font")
+                        QQC2.ToolTip.visible: hovered
+                        onClicked: {
+                            if (page.fontDialogField === fallbackField) page.fontDialogField = null;
+                            page.removeFallback(fallbackField.uid);
+                        }
+                    }
+                }
             }
         }
 

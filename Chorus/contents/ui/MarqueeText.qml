@@ -1,9 +1,11 @@
 import QtQuick
+import "../code/lrc.js" as Lrc
 
 Item {
     id: root
 
     property string text: ""
+    property string fontCss: ""
     property alias font: label.font
     property alias color: label.color
     property real textOpacity: 1.0
@@ -15,10 +17,10 @@ Item {
     readonly property bool overflows: label.implicitWidth > width + 1
 
     Text {
-        textFormat: Text.PlainText
+        textFormat: root.fontCss !== "" ? Text.RichText : Text.PlainText
         id: label
         y: (root.height - height) / 2
-        text: root.text
+        text: Lrc.fontSpan(root.text, root.fontCss)
         opacity: root.textOpacity
         x: root.overflows ? 0 : (root.width - implicitWidth) / 2
     }
