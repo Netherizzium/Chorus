@@ -2,7 +2,7 @@
 
 # Chorus
 
-### Chorus is a KDE Plasma 6 music bar with synced lyrics for any media player, in-widget song search and playback through YouTube Music or Spotify, and media controls.
+**Chorus is a KDE Plasma 6 music bar with synced lyrics for any media player, in-widget song search and playback through YouTube Music or Spotify, and media controls.**
      
 <img src="media/readme/img.png" width="600">
 
