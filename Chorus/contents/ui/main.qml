@@ -102,14 +102,63 @@ PlasmoidItem {
         }
     }
 
-    readonly property string trackTitle:  playerMatches && player.track  ? player.track  : ""
-    readonly property string trackArtist: playerMatches && player.artist ? player.artist : ""
-    readonly property string trackAlbum:  playerMatches && player.album  ? player.album  : ""
-    readonly property url    artUrl:      playerMatches && player.artUrl ? player.artUrl : ""
+    readonly property string rawTitle:  playerMatches && player.track  ? player.track  : ""
+    readonly property string rawArtist: playerMatches && player.artist ? player.artist : ""
+    readonly property string rawAlbum:  playerMatches && player.album  ? player.album  : ""
+    readonly property url    rawArt:    playerMatches && player.artUrl ? player.artUrl : ""
+
+    property var heldTrack: null
+    property string snapTitle: ""
+    property string snapArtist: ""
+    property string snapAlbum: ""
+    property url snapArt: ""
+    Timer {
+        id: metaHold
+        interval: 500
+        repeat: false
+        onTriggered: {
+            root.heldTrack = null;
+            root.metaGate();
+        }
+    }
+    onRawTitleChanged:  metaGate()
+    onRawArtistChanged: metaGate()
+    onRawAlbumChanged:  metaGate()
+    onRawArtChanged:    metaGate()
+    function metaGate() {
+        if (heldTrack !== null) {
+            if (rawTitle !== heldTrack.title && rawLengthMs <= 0) return;
+            heldTrack = null;
+            metaHold.stop();
+        } else if (snapTitle !== "" && rawTitle !== "" && rawTitle !== snapTitle
+                   && isPlaying && rawLengthMs <= 0 && stickyLengthMs > 0) {
+            heldTrack = { title: snapTitle, artist: snapArtist, album: snapAlbum, art: snapArt };
+            metaHold.restart();
+            console.log("[chorus] metadata without a length arrived mid-track (\"" + rawTitle
+                        + "\"), holding \"" + snapTitle + "\" for now");
+            return;
+        }
+        snapTitle = rawTitle;
+        snapArtist = rawArtist;
+        snapAlbum = rawAlbum;
+        snapArt = rawArt;
+    }
+
+    readonly property string trackTitle:  heldTrack ? heldTrack.title  : rawTitle
+    readonly property string trackArtist: heldTrack ? heldTrack.artist : rawArtist
+    readonly property string trackAlbum:  heldTrack ? heldTrack.album  : rawAlbum
+    readonly property url    artUrl:      heldTrack ? heldTrack.art    : rawArt
     readonly property string dispTitle:  optimistic ? optimistic.title  : trackTitle
     readonly property string dispArtist: optimistic ? optimistic.artist : trackArtist
     readonly property url    dispArt:    (optimistic && optimistic.art !== "") ? optimistic.art : artUrl
-    readonly property double lengthMs:    playerMatches && player.length ? player.length / 1000 : 0
+    readonly property double rawLengthMs: playerMatches && player.length ? player.length / 1000 : 0
+    property double stickyLengthMs: 0
+    readonly property double lengthMs: rawLengthMs > 0 ? rawLengthMs : stickyLengthMs
+    onRawLengthMsChanged: {
+        if (rawLengthMs > 0) stickyLengthMs = rawLengthMs;
+        metaGate();
+        safeCall(["updatePosition"]);
+    }
     readonly property double playRate:    (playerMatches && player.rate && player.rate > 0) ? player.rate : 1.0
     readonly property bool winVisible: Window.visibility !== Window.Hidden && Window.visibility !== 0
 
@@ -126,6 +175,17 @@ PlasmoidItem {
     function nowMs() { return rawNowMs() + lyricsOffsetMs; }
 
     property double lastReported: -1
+    property double seekStamp: 0
+    property double backProbeVal: -1
+    property double backProbeAt: 0
+    property int badReports: 0
+    readonly property bool trustPos: badReports < 3
+    Timer {
+        id: posRecheck
+        interval: 900
+        repeat: false
+        onTriggered: root.safeCall(["updatePosition"])
+    }
     function startCalibration() {
         lastReported = -1;
         calibTimer.ticks = 0;
@@ -135,7 +195,7 @@ PlasmoidItem {
         interval: 150
         repeat: true
         property int ticks: 999
-        running: root.isPlaying && root.winVisible && root.haveSynced && ticks < 14
+        running: root.isPlaying && root.winVisible && root.haveSynced && root.trustPos && ticks < 14
         onTriggered: {
             ticks++;
             root.safeCall(["updatePosition"]);
@@ -146,9 +206,20 @@ PlasmoidItem {
         target: root.player
         enabled: root.player !== null
         function onPositionChanged() {
+            if (!root.trustPos) return;
             var reported = root.player.position / 1000;
             var predicted = root.rawNowMs();
             var diff = reported - predicted;
+            if (root.seekStamp > 0) {
+                var since = Date.now() - root.seekStamp;
+                if (since < 2500) {
+                    if (Math.abs(diff) > 1000) {
+                        posRecheck.restart();
+                        return;
+                    }
+                }
+                root.seekStamp = 0;
+            }
             if (root.isPlaying && calibTimer.ticks < 15 && Math.abs(diff) < 2000) {
                 if (root.lastReported >= 0 && reported > root.lastReported
                         && reported - root.lastReported < 2000) {
@@ -167,6 +238,29 @@ PlasmoidItem {
             if (root.isPlaying && Math.abs(diff) < 750) {
                 return;
             }
+            if (root.isPlaying && diff < -2000 && reported < 2000 && predicted > 3000) {
+                if (root.backProbeVal >= 0 && Date.now() - root.backProbeAt > 600) {
+                    var waited = (Date.now() - root.backProbeAt) * root.playRate;
+                    var moved = reported - root.backProbeVal;
+                    root.backProbeVal = -1;
+                    if (moved < waited * 0.5) {
+                        root.badReports++;
+                        console.log("[chorus] player reports a stuck position near 0 ("
+                                    + Math.round(reported) + "ms while playing "
+                                    + Math.round(predicted) + "ms), keeping the local clock"
+                                    + (root.trustPos ? "" : "; ignoring its position reports for this track"));
+                        return;
+                    }
+                } else {
+                    root.backProbeVal = reported;
+                    root.backProbeAt = Date.now();
+                    posRecheck.restart();
+                    return;
+                }
+            } else {
+                root.backProbeVal = -1;
+            }
+            root.badReports = 0;
             root.posMs = reported;
             root.posStamp = Date.now();
             root.uiPosMs = root.nowMs();
@@ -190,10 +284,17 @@ PlasmoidItem {
     readonly property string songKey: trackTitle + "\u0001" + trackArtist
     onSongKeyChanged: {
         fetching = false;
+        badReports = 0;
+        backProbeVal = -1;
+        stickyLengthMs = rawLengthMs > 0 ? rawLengthMs : 0;
         if (trackTitle !== "") { optimistic = null; optimisticTimeout.stop(); }
         lines = [];
         lineIdx = -1;
         if (trackTitle !== "") {
+            posMs = 0;
+            posStamp = Date.now();
+            uiPosMs = 0;
+            seekStamp = 0;
             fetchLyrics();
             startCalibration();
             safeCall(["updatePosition"]);
@@ -317,7 +418,7 @@ PlasmoidItem {
         id: driftTimer
         interval: 3000
         repeat: true
-        running: root.isPlaying && root.winVisible && root.haveSynced
+        running: root.isPlaying && root.winVisible && root.haveSynced && root.trustPos
         onTriggered: root.safeCall(["updatePosition"])
     }
 
@@ -358,25 +459,89 @@ PlasmoidItem {
         safeCall(["Raise", "raise"]);
         if (pearIsCurrent || (pear !== null && !player)) pear.launchApp();
     }
+    property bool volumeWorks: true
+    property double volProbeTarget: -1
+    property var volBroken: ({})
+    readonly property bool canSetVolume: playerMatches && player.volume !== undefined && volumeWorks
+    function volKeyFor(p) {
+        if (!p) return "";
+        return String(p.identity || "") + "|" + String(p.desktopEntry || "");
+    }
+    onPlayerChanged: {
+        volProbe.stop();
+        volProbeTarget = -1;
+        volumeWorks = volBroken[volKeyFor(player)] !== true;
+        badReports = 0;
+        backProbeVal = -1;
+        heldTrack = null;
+        metaHold.stop();
+        stickyLengthMs = 0;
+        pendingSeekUs = -1;
+        seekWrite.stop();
+        metaGate();
+    }
+    Timer {
+        id: volProbe
+        interval: 900
+        repeat: false
+        onTriggered: {
+            if (!root.player || root.volProbeTarget < 0) return;
+            var cur = root.player.volume;
+            root.volumeWorks = cur !== undefined && Math.abs(cur - root.volProbeTarget) < 0.02;
+            root.volProbeTarget = -1;
+            if (!root.volumeWorks) {
+                root.volBroken[root.volKeyFor(root.player)] = true;
+                console.log("[chorus] " + (root.player.identity || "player")
+                            + " ignores volume writes, disabling volume control for it");
+            }
+        }
+    }
+
     function setVol01(v) {
-        if (!player) return;
+        if (!player || !volumeWorks) return;
         v = Math.max(0, Math.min(1, v));
-        try { if (typeof player.setVolume === "function") { player.setVolume(v); return; } } catch (e) {}
-        try { player.volume = v; } catch (e) {}
+        volProbeTarget = v;
+        volProbe.restart();
+        try {
+            player.volume = v;
+        } catch (e) {
+            volProbe.stop();
+            volProbeTarget = -1;
+            volumeWorks = false;
+            volBroken[volKeyFor(player)] = true;
+        }
     }
     function changeVol(deltaPct) {
-        if (!player) return;
+        if (!canSetVolume) return;
         var curPct = Math.round((player.volume || 0) * 100);
         var snapped = Math.round(curPct / 5) * 5;
-        var v = Math.max(0, Math.min(100, snapped + deltaPct)) / 100;
-        try { if (typeof player.setVolume === "function") { player.setVolume(v); return; } } catch (e) {}
-        try { player.volume = v; } catch (e) {}
+        setVol01(Math.max(0, Math.min(100, snapped + deltaPct)) / 100);
+    }
+    property double pendingSeekUs: -1
+    Timer {
+        id: seekWrite
+        interval: 100
+        repeat: false
+        onTriggered: {
+            var us = root.pendingSeekUs;
+            root.pendingSeekUs = -1;
+            if (us < 0 || !root.player) return;
+            var ok = true;
+            try { root.player.position = us; } catch (e) { ok = false; }
+            if (!ok) root.safeCall(["Seek", "seek"], us - Math.round(root.rawNowMs() * 1000));
+        }
     }
     function seekToMs(ms) {
         if (!player || !player.canSeek) return;
-        var us = Math.round(ms * 1000);
-        if (safeCall(["setPosition", "SetPosition"], us)) return;
-        safeCall(["Seek", "seek"], us - player.position);
+        var target = Math.max(0, lengthMs > 0 ? Math.min(ms, lengthMs) : ms);
+        pendingSeekUs = Math.round(target * 1000);
+        seekWrite.restart();
+        seekStamp = Date.now();
+        posMs = target;
+        posStamp = Date.now();
+        uiPosMs = nowMs();
+        resync();
+        if (isPlaying) startCalibration();
     }
 
     readonly property string searchMode: {
@@ -574,7 +739,26 @@ PlasmoidItem {
     compactRepresentation: Item {
         id: bar
 
-        readonly property bool shown: root.isActive || !Plasmoid.configuration.hideWhenIdle
+        property bool activeSticky: false
+        Component.onCompleted: activeSticky = root.isActive
+        Timer {
+            id: idleDelay
+            interval: 2500
+            repeat: false
+            onTriggered: bar.activeSticky = false
+        }
+        Connections {
+            target: root
+            function onIsActiveChanged() {
+                if (root.isActive) {
+                    idleDelay.stop();
+                    bar.activeSticky = true;
+                } else if (bar.activeSticky) {
+                    idleDelay.restart();
+                }
+            }
+        }
+        readonly property bool shown: activeSticky || !Plasmoid.configuration.hideWhenIdle
         readonly property bool vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
         readonly property real thick: vertical ? width : height
         readonly property real screenLen: vertical ? Screen.height : Screen.width
@@ -597,8 +781,9 @@ PlasmoidItem {
             frozenViewportW = Math.max(0, frozenLen - fixedW);
         }
         onHoldChanged: {
-            if (hold) captureFrozen();
-            else {
+            if (hold) {
+                captureFrozen();
+            } else {
                 frozenLen = 0;
                 frozenViewportW = Number.POSITIVE_INFINITY;
             }
@@ -618,7 +803,7 @@ PlasmoidItem {
             anchors.fill: parent
             onClicked: root.expanded = !root.expanded
             onWheel: function (wheel) {
-                if (!root.playerMatches) return;
+                if (!root.canSetVolume) return;
                 root.changeVol(wheel.angleDelta.y > 0 ? 5 : -5);
                 wheel.accepted = true;
             }
@@ -934,9 +1119,9 @@ PlasmoidItem {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.doRaise()
                     onWheel: function (wheel) {
-                        if (!root.playerMatches) return;
+                        if (!root.canSetVolume) return;
                         root.changeVol(wheel.angleDelta.y > 0 ? 5 : -5);
-                        volOverlay.show();
+                        if (root.canSetVolume) volOverlay.show();
                         wheel.accepted = true;
                     }
                 }
@@ -1019,7 +1204,7 @@ PlasmoidItem {
 
                 PC3.Label {
                     textFormat: Text.PlainText
-                    text: popup.fmt(root.isActive ? (seekBar.dragging ? seekBar.dragRatio * root.lengthMs : root.uiPosMs) : 0)
+                    text: popup.fmt(root.isActive ? (seekBar.dragging ? seekBar.dragTargetMs : root.uiPosMs) : 0)
                     color: root.cActive
                     font.family: root.cfgFont
                     font.pixelSize: Kirigami.Theme.smallFont.pixelSize
@@ -1034,6 +1219,8 @@ PlasmoidItem {
                     Layout.preferredHeight: Kirigami.Units.gridUnit
                     property bool dragging: false
                     property real dragRatio: 0
+                    property real dragLenMs: 0
+                    readonly property real dragTargetMs: dragRatio * (dragLenMs > 0 ? dragLenMs : root.lengthMs)
                     readonly property real ratio: !root.isActive || root.lengthMs <= 0 ? 0
                         : Math.max(0, Math.min(1, dragging ? dragRatio : root.uiPosMs / root.lengthMs))
 
@@ -1063,8 +1250,10 @@ PlasmoidItem {
                     MouseArea {
                         anchors.fill: parent
                         enabled: root.isActive && root.playerMatches && root.player.canSeek
+                                 && root.lengthMs > 0
                         onPressed: function (mouse) {
                             seekBar.dragging = true;
+                            seekBar.dragLenMs = root.lengthMs;
                             seekBar.dragRatio = Math.max(0, Math.min(1, mouse.x / width));
                         }
                         onPositionChanged: function (mouse) {
@@ -1072,9 +1261,11 @@ PlasmoidItem {
                                 seekBar.dragRatio = Math.max(0, Math.min(1, mouse.x / width));
                         }
                         onReleased: {
+                            var target = seekBar.dragTargetMs;
                             seekBar.dragging = false;
-                            root.seekToMs(seekBar.dragRatio * root.lengthMs);
-                            root.uiPosMs = seekBar.dragRatio * root.lengthMs;
+                            if (seekBar.dragLenMs <= 0 && root.lengthMs <= 0) return;
+                            root.seekToMs(target);
+                            root.uiPosMs = target;
                         }
                     }
                 }
@@ -1147,8 +1338,7 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 Layout.leftMargin: Kirigami.Units.gridUnit * 2
                 Layout.rightMargin: Kirigami.Units.gridUnit * 2
-                visible: Plasmoid.configuration.showVolumeBar
-                         && root.playerMatches && root.player.volume !== undefined
+                visible: Plasmoid.configuration.showVolumeBar && root.canSetVolume
                 spacing: Kirigami.Units.smallSpacing
 
                 Kirigami.Icon {
